@@ -4,12 +4,14 @@
 export DB_HOST
 export DB_USER
 export DB_NAME
+export DB_PREF
 export DEBUG
 
 # Default values
 DB_HOST=${DB_HOST:-mariadb}
 DB_USER=${DB_USER:-flarum}
 DB_NAME=${DB_NAME:-flarum}
+DB_PREF=${DB_PREF:-""}
 DEBUG=${DEBUG:-false}
 
 # Required env variables
@@ -36,6 +38,7 @@ databaseConfiguration:
     database: ${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASS}
+    prefix: ${DB_PREF}
 
 baseUrl: ${FORUM_URL}
 EOF
@@ -44,8 +47,8 @@ EOF
 # PHP Fatal error:  Uncaught ReflectionException: Class flarum.config does not
 # exist in /flarum/vendor/illuminate/container/Container.php
 # https://github.com/flarum/core/commit/7192c4391bee006ccc2de3db6caa89803d72d130
-sed -i -e 's|InfoCommand::class,||g' \
-       -e "s|\['config' => \$app->make('flarum.config')\]|['config' => \$app->isInstalled() ? \$app->make('flarum.config') : []]|g" vendor/flarum/core/src/Console/Server.php
+# sed -i -e 's|InfoCommand::class,||g' \
+#        -e "s|\['config' => \$app->make('flarum.config')\]|['config' => \$app->isInstalled() ? \$app->make('flarum.config') : []]|g" vendor/flarum/core/src/Console/Server.php
 
 # if no installation was performed before
 if [ ! -e 'assets/rev-manifest.json' ]; then
@@ -84,14 +87,15 @@ else
   #      seedGroups() = Create default groups
   # seedPermissions() = Create default permissions
   # createAdminUser() = Create default admin user
-  sed -i -e '/$this->runMigrations();/ s/^/#/'   \
-         -e '/$this->writeSettings();/ s/^/#/'   \
-         -e '/$this->seedGroups();/ s/^/#/'      \
-         -e '/$this->seedPermissions();/ s/^/#/' \
-         -e '/$this->createAdminUser();/ s/^/#/' vendor/flarum/core/src/Install/Console/InstallCommand.php
+  #sed -i -e '/$this->runMigrations();/ s/^/#/'   \
+  #       -e '/$this->writeSettings();/ s/^/#/'   \
+  #       -e '/$this->seedGroups();/ s/^/#/'      \
+  #       -e '/$this->seedPermissions();/ s/^/#/' \
+  #       -e '/$this->createAdminUser();/ s/^/#/' vendor/flarum/core/src/Install/Console/InstallCommand.php
 
   # Init flarum (without steps above)
-  su-exec $UID:$GID php flarum install --file config.yml
+  su-exec $UID:$GID php flarum migrate
+  su-exec $UID:$GID php flarum cache:clear
 
   # Composer cache dir and packages list paths
   CACHE_DIR=/flarum/app/assets/.extensions
@@ -113,7 +117,13 @@ fi
 
 # Set flarum debug mode
 if [ -f "config.php" ]; then
-  sed -i "s|\('debug' =>\) .*|\1 ${DEBUG},|" config.php
+  sed -i -e "s|\('debug' =>\) .*|\1 ${DEBUG},|" \
+         -e "s|\('host' =>\) .*|\1 '${DB_HOST}',|" \
+         -e "s|\('database' =>\) .*|\1 '${DB_NAME}',|" \
+         -e "s|\('username' =>\) .*|\1 '${DB_USER}',|" \
+         -e "s|\('password' =>\) .*|\1 '${DB_PASS}',|" \
+         -e "s|\('prefix' =>\) .*|\1 '${DB_PREF}',|" \
+         -e "s|\('url' =>\) .*|\1 '${FORUM_URL}',|" config.php
 fi
 
 # Removing installation files

@@ -38,6 +38,7 @@ Flarum is the next-generation forum software that makes online discussion fun. I
 | **DB_USER** | MariaDB database username | *optional* | flarum
 | **DB_NAME** | MariaDB database name | *optional* | flarum
 | **DB_PASS** | MariaDB database password | **required** | none
+| **DB_PREF** | MariaDB database prefix | *optional* | none
 | **MAIL_FROM** | Mail 'from address' | *optional* | none
 | **MAIL_HOST** | Mail server FQDN | *optional* | none
 | **MAIL_PORT** | Mail server smtp port | *optional* | none
